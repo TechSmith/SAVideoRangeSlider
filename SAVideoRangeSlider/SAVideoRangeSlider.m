@@ -338,8 +338,8 @@
         self.imageGenerator.maximumSize = CGSizeMake(_bgView.frame.size.width, _bgView.frame.size.height);
     }
     
-    int picWidth = 20;
-    
+    int picWidth = [self calculatePreviewCellWidthWithAsset:myAsset forBackgroundSize:_bgView.frame.size];
+   
     // First image
     NSError *error;
     CMTime actualTime;
@@ -371,7 +371,6 @@
     
     if ([[[UIDevice currentDevice] systemVersion] floatValue] >= 7.0){
         // Bug iOS7 - generateCGImagesAsynchronouslyForTimes
-        int prefreWidth=0;
         for (int i=1, ii=1; i<picsCnt; i++){
             time4Pic = i*picWidth;
             
@@ -389,33 +388,35 @@
                 videoScreen = [[UIImage alloc] initWithCGImage:halfWayImage];
             }
             
+            UIImageView *currentCellImageView = [[UIImageView alloc] initWithImage:videoScreen];
+            currentCellImageView.contentMode = UIViewContentModeLeft;
+            currentCellImageView.clipsToBounds = YES;
             
-            
-            UIImageView *tmp = [[UIImageView alloc] initWithImage:videoScreen];
-            
-            
-            
-            CGRect currentFrame = tmp.frame;
-            currentFrame.origin.x = ii*picWidth;
+            CGRect resizedFrame = currentCellImageView.frame;
+            resizedFrame.origin.x = ii*picWidth;
 
-            currentFrame.size.width=picWidth;
-            prefreWidth+=currentFrame.size.width;
-            
-            if( i == picsCnt-1){
-                currentFrame.size.width-=6;
+            resizedFrame.size.width=picWidth;
+           
+            int currentFrameMaxX = CGRectGetMaxX(resizedFrame);
+            if (currentFrameMaxX > _bgView.frame.size.width) {
+               resizedFrame.size.width -= currentFrameMaxX - _bgView.frame.size.width;
             }
-            tmp.frame = currentFrame;
-            int all = (ii+1)*tmp.frame.size.width;
+           
+            if( i == picsCnt-1){
+                resizedFrame.size.width-=6;
+            }
+            currentCellImageView.frame = resizedFrame;
+            int all = (ii+1)*currentCellImageView.frame.size.width;
 
             if (all > _bgView.frame.size.width){
                 int delta = all - _bgView.frame.size.width;
-                currentFrame.size.width -= delta;
+                resizedFrame.size.width -= delta;
             }
 
             ii++;
             
             dispatch_async(dispatch_get_main_queue(), ^{
-                [_bgView addSubview:tmp];
+                [_bgView addSubview:currentCellImageView];
             });
             
             
@@ -566,5 +567,13 @@
             ([UIScreen mainScreen].scale == 2.0));
 }
 
+-(int)calculatePreviewCellWidthWithAsset:(AVAsset*)asset forBackgroundSize:(CGSize)backgroundSize{
+    AVAssetTrack* assetTrack = [[asset tracksWithMediaType:AVMediaTypeVideo] firstObject];
+    CGSize assetSize = assetTrack.naturalSize;
+   
+    float scaleFactor = backgroundSize.height / assetSize.height;
+   
+    return assetSize.width * scaleFactor;
+}
 
 @end
